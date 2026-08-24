@@ -1,16 +1,19 @@
 import React from 'react';
-import { Thermometer, ShieldAlert, Snowflake, Activity, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Thermometer, ShieldAlert, Snowflake, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { convertTemp, getUnitSymbol } from '../services/mockDataGenerator';
 
-export default function FleetOverviewCards({ assets = [], breaches = [] }) {
+export default function FleetOverviewCards({ assets = [], unit = 'C' }) {
   const total = assets.length;
   const compliantCount = assets.filter(a => a.status === 'COMPLIANT').length;
   const breachCount = assets.filter(a => a.status !== 'COMPLIANT').length;
   const complianceRate = total > 0 ? ((compliantCount / total) * 100).toFixed(1) : 100;
 
-  const avgTemp = total > 0 
-    ? (assets.reduce((acc, curr) => acc + curr.temperature, 0) / total).toFixed(1) 
+  const rawAvgTemp = total > 0 
+    ? (assets.reduce((acc, curr) => acc + curr.temperature, 0) / total) 
     : 4.2;
 
+  const displayAvgTemp = convertTemp(rawAvgTemp, unit);
+  const symbol = getUnitSymbol(unit);
   const doorOpenCount = assets.filter(a => a.door_open).length;
 
   return (
@@ -45,8 +48,8 @@ export default function FleetOverviewCards({ assets = [], breaches = [] }) {
           </div>
         </div>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-bold font-mono text-white glow-cyan">{avgTemp}°C</span>
-          <span className="text-xs text-cyan-400">Target 2°C – 8°C</span>
+          <span className="text-3xl font-bold font-mono text-white glow-cyan">{displayAvgTemp}{symbol}</span>
+          <span className="text-xs text-cyan-400">Target {convertTemp(2, unit)}{symbol} – {convertTemp(8, unit)}{symbol}</span>
         </div>
         <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
           <Snowflake className="w-3 h-3 text-cyan-400" />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Thermometer, ShieldAlert, Cpu, Snowflake, RefreshCw, Navigation } from 'lucide-react';
 
-export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount, onRefresh, lastUpdated, onOpenGeofences }) {
+export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount, onRefresh, lastUpdated, onOpenGeofences, unit, onToggleUnit }) {
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-slate-800 px-6 py-3.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -34,6 +34,22 @@ export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount
         {/* Real-time Status Badges & Action Buttons */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           
+          {/* Temperature Unit Switcher (°C | °F) */}
+          <div className="flex rounded-lg bg-slate-900 p-1 border border-slate-800 font-mono">
+            <button
+              onClick={() => onToggleUnit && onToggleUnit('C')}
+              className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-colors ${unit === 'C' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            >
+              °C
+            </button>
+            <button
+              onClick={() => onToggleUnit && onToggleUnit('F')}
+              className={`px-2.5 py-0.5 rounded text-[11px] font-bold transition-colors ${unit === 'F' ? 'bg-cyan-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+            >
+              °F
+            </button>
+          </div>
+
           {/* Geofence Corridor Manager Trigger */}
           <button
             onClick={onOpenGeofences}

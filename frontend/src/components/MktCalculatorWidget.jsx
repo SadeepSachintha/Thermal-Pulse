@@ -1,13 +1,15 @@
 import React from 'react';
-import { Thermometer, Calculator, CheckCircle2, AlertOctagon } from 'lucide-react';
-import { calculateMktLocal } from '../services/mockDataGenerator';
+import { Calculator, CheckCircle2, AlertOctagon } from 'lucide-react';
+import { calculateMktLocal, convertTemp, getUnitSymbol } from '../services/mockDataGenerator';
 
-export default function MktCalculatorWidget({ asset }) {
+export default function MktCalculatorWidget({ asset, unit = 'C' }) {
   if (!asset) return null;
 
   const history = asset.history || [];
-  const mktValue = calculateMktLocal(history);
-  const isCompliant = mktValue <= asset.temp_max_celsius;
+  const mktValueC = calculateMktLocal(history);
+  const displayMkt = convertTemp(mktValueC, unit);
+  const symbol = getUnitSymbol(unit);
+  const isCompliant = mktValueC <= asset.temp_max_celsius;
 
   return (
     <div className="glass-panel rounded-xl p-4 border border-slate-800">
@@ -27,7 +29,7 @@ export default function MktCalculatorWidget({ asset }) {
         <div className="p-3 rounded-lg glass-card border border-slate-800">
           <span className="text-[11px] text-slate-400 block mb-1">Mean Kinetic Temperature</span>
           <div className="text-2xl font-bold font-mono text-cyan-300 glow-cyan">
-            {mktValue}°C
+            {displayMkt}{symbol}
           </div>
           <span className="text-[10px] text-slate-500 font-mono">WHO / HACCP Formula</span>
         </div>
@@ -48,7 +50,7 @@ export default function MktCalculatorWidget({ asset }) {
               </>
             )}
           </div>
-          <span className="text-[10px] text-slate-500">Threshold: {asset.temp_max_celsius}°C</span>
+          <span className="text-[10px] text-slate-500">Threshold: {convertTemp(asset.temp_max_celsius, unit)}{symbol}</span>
         </div>
 
       </div>

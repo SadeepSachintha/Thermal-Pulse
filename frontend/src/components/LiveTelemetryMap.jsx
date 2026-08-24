@@ -2,16 +2,18 @@ import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { Thermometer, Navigation, Battery } from 'lucide-react';
+import { convertTemp, getUnitSymbol } from '../services/mockDataGenerator';
 
 // Custom Leaflet Icons for Compliant vs Breach Units
-const createCustomIcon = (status, temp) => {
+const createCustomIcon = (status, temp, unit) => {
   const isBreach = status !== 'COMPLIANT' || temp > 8.0 || temp < 2.0;
   const colorClass = isBreach ? 'bg-rose-500 border-rose-300 text-white shadow-rose-500/50' : 'bg-cyan-500 border-cyan-300 text-slate-950 shadow-cyan-500/50';
+  const displayVal = convertTemp(temp, unit);
 
   const html = `
     <div class="relative flex items-center justify-center">
-      <div class="w-8 h-8 rounded-full border-2 ${colorClass} flex items-center justify-center font-mono font-bold text-[10px] shadow-lg transform hover:scale-110 transition-transform">
-        ${temp}°
+      <div class="w-9 h-9 rounded-full border-2 ${colorClass} flex items-center justify-center font-mono font-bold text-[9px] shadow-lg transform hover:scale-110 transition-transform">
+        ${displayVal}°
       </div>
       <div class="absolute -bottom-1 w-2 h-2 rotate-45 ${isBreach ? 'bg-rose-500' : 'bg-cyan-500'}"></div>
     </div>
@@ -20,15 +22,15 @@ const createCustomIcon = (status, temp) => {
   return L.divIcon({
     html,
     className: 'custom-leaflet-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
   });
 };
 
-export default function LiveTelemetryMap({ assets = [], geofences = [], onSelectAsset }) {
-  // Map center over Sri Lanka transport corridor hub
+export default function LiveTelemetryMap({ assets = [], geofences = [], unit = 'C', onSelectAsset }) {
   const center = [6.9271, 79.8612];
+  const symbol = getUnitSymbol(unit);
 
   return (
     <div className="glass-panel rounded-xl p-4 h-[440px] flex flex-col relative overflow-hidden border border-slate-800">
@@ -72,7 +74,6 @@ export default function LiveTelemetryMap({ assets = [], geofences = [], onSelect
           {/* Render Active PostGIS Geofence Polygons */}
           {geofences.map((geo) => {
             if (!geo.points || geo.points.length === 0) return null;
-            // Convert [lng, lat] to Leaflet [lat, lng]
             const leafletPositions = geo.points.map(pt => [pt[1], pt[0]]);
             const isCorridor = geo.zone_type === 'COLD_CORRIDOR';
 
@@ -103,7 +104,7 @@ export default function LiveTelemetryMap({ assets = [], geofences = [], onSelect
             <Marker
               key={dev.device_id}
               position={[dev.latitude, dev.longitude]}
-              icon={createCustomIcon(dev.status, dev.temperature)}
+              icon={createCustomIcon(dev.status, dev.temperature, unit)}
               eventHandlers={{
                 click: () => onSelectAsset && onSelectAsset(dev),
               }}
@@ -122,7 +123,7 @@ export default function LiveTelemetryMap({ assets = [], geofences = [], onSelect
                       <span className="text-slate-400 flex items-center gap-1">
                         <Thermometer className="w-3 h-3 text-cyan-400" /> Temperature:
                       </span>
-                      <span className="font-mono font-bold text-white">{dev.temperature}°C</span>
+                      <span className="font-mono font-bold text-white">{convertTemp(dev.temperature, unit)}{symbol}</span>
                     </div>
 
                     <div className="flex justify-between items-center">

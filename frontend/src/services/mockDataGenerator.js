@@ -1,5 +1,17 @@
 // Mock & Live API Integration Service for ThermalPulse Dashboard
 
+export const convertTemp = (tempC, unit = 'C') => {
+  if (tempC === null || tempC === undefined) return 'N/A';
+  if (unit === 'F') {
+    return (tempC * 1.8 + 32).toFixed(1);
+  }
+  return tempC.toFixed(1);
+};
+
+export const getUnitSymbol = (unit = 'C') => {
+  return unit === 'F' ? '°F' : '°C';
+};
+
 const INITIAL_DEVICES = Array.from({ length: 100 }, (_, i) => {
   const id = `CONT-SENSOR-${String(i + 1).padStart(3, '0')}`;
   const isReefer = i % 2 === 0;
@@ -93,7 +105,6 @@ export const getFleetState = async () => {
       door = true;
       status = 'EXCURSION_BREACHED';
 
-      // Log breach event
       recentBreaches.unshift({
         id: Date.now() + Math.random(),
         device_id: dev.device_id,
@@ -152,7 +163,7 @@ export const predictShelfLifeLocal = (mkt, nominalDays = 180) => {
   const currentTempKelvin = (mkt || 5.0) + 273.15;
   const accelerationFactor = Math.exp(10000.0 * ((1.0 / refTempKelvin) - (1.0 / currentTempKelvin)));
   
-  const daysUsedEquivalent = accelerationFactor * 1.5; // Factor scale
+  const daysUsedEquivalent = accelerationFactor * 1.5;
   const remainingDays = Math.max(0, nominalDays - daysUsedEquivalent);
   const degradationPct = Math.min(100, Math.max(0, (daysUsedEquivalent / nominalDays) * 100));
 

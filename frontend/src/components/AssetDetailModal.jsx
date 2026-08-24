@@ -3,9 +3,13 @@ import { X, Thermometer, FileSpreadsheet, MapPin } from 'lucide-react';
 import MktCalculatorWidget from './MktCalculatorWidget';
 import ShelfLifePredictorWidget from './ShelfLifePredictorWidget';
 import TelemetryChart from './TelemetryChart';
+import { convertTemp, getUnitSymbol } from '../services/mockDataGenerator';
 
-export default function AssetDetailModal({ asset, onClose }) {
+export default function AssetDetailModal({ asset, unit = 'C', onClose }) {
   if (!asset) return null;
+
+  const symbol = getUnitSymbol(unit);
+  const displayTemp = convertTemp(asset.temperature, unit);
 
   const handleExportCsv = () => {
     const rows = [
@@ -13,7 +17,7 @@ export default function AssetDetailModal({ asset, onClose }) {
       ["Device ID", asset.device_id],
       ["Asset Name", asset.name],
       ["Asset Type", asset.asset_type],
-      ["Current Temperature", `${asset.temperature} °C`],
+      ["Current Temperature", `${displayTemp} ${symbol}`],
       ["Relative Humidity", `${asset.humidity} %`],
       ["Door State", asset.door_open ? "DOOR AJAR" : "SECURED"],
       ["Regulatory Status", asset.status],
@@ -77,8 +81,8 @@ export default function AssetDetailModal({ asset, onClose }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="p-3 rounded-xl glass-card border border-slate-800">
             <span className="text-[11px] text-slate-400">Current Temp</span>
-            <div className="text-2xl font-bold font-mono text-cyan-300 mt-1">{asset.temperature}°C</div>
-            <span className="text-[10px] text-slate-500">Limits: {asset.temp_min_celsius}°C – {asset.temp_max_celsius}°C</span>
+            <div className="text-2xl font-bold font-mono text-cyan-300 mt-1">{displayTemp}{symbol}</div>
+            <span className="text-[10px] text-slate-500">Limits: {convertTemp(asset.temp_min_celsius, unit)}{symbol} – {convertTemp(asset.temp_max_celsius, unit)}{symbol}</span>
           </div>
 
           <div className="p-3 rounded-xl glass-card border border-slate-800">
@@ -108,12 +112,13 @@ export default function AssetDetailModal({ asset, onClose }) {
             history={asset.history || []} 
             tempMin={asset.temp_min_celsius || 2.0} 
             tempMax={asset.temp_max_celsius || 8.0} 
+            unit={unit}
           />
         </div>
 
         {/* MKT and Shelf-Life Intelligence Widgets */}
         <div className="space-y-4 mb-6">
-          <MktCalculatorWidget asset={asset} />
+          <MktCalculatorWidget asset={asset} unit={unit} />
           <ShelfLifePredictorWidget asset={asset} />
         </div>
 

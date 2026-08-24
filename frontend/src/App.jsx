@@ -5,12 +5,13 @@ import LiveTelemetryMap from './components/LiveTelemetryMap';
 import BreachAlertsStream from './components/BreachAlertsStream';
 import AssetDetailModal from './components/AssetDetailModal';
 import GeofenceEditorModal from './components/GeofenceEditorModal';
-import { getFleetState } from './services/mockDataGenerator';
+import { getFleetState, convertTemp, getUnitSymbol } from './services/mockDataGenerator';
 import { Search, Cpu } from 'lucide-react';
 
 export default function App() {
   const [assets, setAssets] = useState([]);
   const [breaches, setBreaches] = useState([]);
+  const [unit, setUnit] = useState('C');
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [showGeofencesModal, setShowGeofencesModal] = useState(false);
@@ -79,6 +80,7 @@ export default function App() {
   });
 
   const activeBreachesCount = assets.filter(a => a.status !== 'COMPLIANT').length;
+  const unitSymbol = getUnitSymbol(unit);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
@@ -91,13 +93,15 @@ export default function App() {
         onRefresh={fetchTelemetryData}
         lastUpdated={lastUpdated}
         onOpenGeofences={() => setShowGeofencesModal(true)}
+        unit={unit}
+        onToggleUnit={(newUnit) => setUnit(newUnit)}
       />
 
       {/* Main Dashboard Container */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 flex-1 space-y-6">
         
         {/* KPI Overview Cards */}
-        <FleetOverviewCards assets={assets} breaches={breaches} />
+        <FleetOverviewCards assets={assets} breaches={breaches} unit={unit} />
 
         {/* Real-time Map & Excursion Breach Stream split grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -105,12 +109,14 @@ export default function App() {
             <LiveTelemetryMap 
               assets={filteredAssets} 
               geofences={geofences}
+              unit={unit}
               onSelectAsset={(asset) => setSelectedAsset(asset)} 
             />
           </div>
           <div className="lg:col-span-1">
             <BreachAlertsStream 
               breaches={breaches} 
+              unit={unit}
               onSelectDevice={(id) => {
                 const found = assets.find(a => a.device_id === id);
                 if (found) setSelectedAsset(found);
@@ -172,6 +178,8 @@ export default function App() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 max-h-[380px] overflow-y-auto pr-1">
             {filteredAssets.map((dev) => {
               const isBreach = dev.status !== 'COMPLIANT';
+              const displayTemp = convertTemp(dev.temperature, unit);
+
               return (
                 <div
                   key={dev.device_id}
@@ -184,7 +192,7 @@ export default function App() {
                   </div>
 
                   <div className="flex items-baseline justify-between mt-2">
-                    <span className="text-xl font-bold font-mono text-white">{dev.temperature}°C</span>
+                    <span className="text-xl font-bold font-mono text-white">{displayTemp}{unitSymbol}</span>
                     <span className="text-[10px] text-slate-400">{dev.humidity}% RH</span>
                   </div>
 
@@ -205,6 +213,7 @@ export default function App() {
       {selectedAsset && (
         <AssetDetailModal 
           asset={selectedAsset} 
+          unit={unit}
           onClose={() => setSelectedAsset(null)} 
         />
       )}
