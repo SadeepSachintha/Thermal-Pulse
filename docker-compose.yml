@@ -97,7 +97,7 @@ services:
     networks:
       - thermal_net
 
-  # 7. Real-Time Multi-Channel Alert Dispatcher
+  # 7. Real-Time Multi-Channel Alert Dispatcher (Webhooks, Slack, Telegram)
   alert-dispatcher:
     build:
       context: ./alert_service
@@ -106,7 +106,10 @@ services:
       - redis
     environment:
       REDIS_HOST: "redis"
-      ALERT_WEBHOOK_URL: ""
+      ALERT_WEBHOOK_URL: "${ALERT_WEBHOOK_URL:-}"
+      SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_URL:-}"
+      TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+      TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-}"
     restart: always
     networks:
       - thermal_net
