@@ -106,21 +106,23 @@ jobs:
         with:
           version: 'v3.13.0'
 
-      - name: Validate Helm Chart (Dry Run)
+      - name: Validate Helm Chart (Lint & Dry-Run)
         run: |
           helm lint ./k8s
           helm template thermal-pulse ./k8s --set image.tag=latest
 
-      - name: Set up Kubeconfig
-        if: ${{ secrets.KUBECONFIG != '' }}
-        uses: azure/k8s-set-context@v3
-        with:
-          kubeconfig: ${{ secrets.KUBECONFIG }}
-
-      - name: Deploy Helm Chart
-        if: ${{ secrets.KUBECONFIG != '' }}
+      - name: Deploy Helm Chart to Kubernetes
+        env:
+          KUBECONFIG_SECRET: ${{ secrets.KUBECONFIG }}
         run: |
-          helm upgrade --install thermal-pulse ./k8s \
-            --namespace thermal-pulse \
-            --create-namespace \
-            --set image.tag=latest
+          if [ -z "$KUBECONFIG_SECRET" ]; then
+            echo "Notice: No KUBECONFIG secret provided in repository settings."
+            echo "Skipping live cluster deployment step. Helm chart linting & template rendering passed 100% cleanly!"
+          else
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_SECRET" > ~/.kube/config
+            helm upgrade --install thermal-pulse ./k8s \
+              --namespace thermal-pulse \
+              --create-namespace \
+              --set image.tag=latest
+          fi
