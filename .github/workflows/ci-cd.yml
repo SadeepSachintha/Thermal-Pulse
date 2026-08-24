@@ -56,6 +56,10 @@ jobs:
       - name: Checkout Codebase
         uses: actions/checkout@v4
 
+      - name: Lowercase Repository Name
+        run: |
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
       - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
@@ -68,21 +72,21 @@ jobs:
         with:
           context: ./stream_processor
           push: true
-          tags: ghcr.io/${{ github.repository }}/faust-processor:latest
+          tags: ghcr.io/${{ env.REPO_LOWER }}/faust-processor:latest
 
       - name: Build & Push Sensor Simulator Image
         uses: docker/build-push-action@v5
         with:
           context: ./simulator
           push: true
-          tags: ghcr.io/${{ github.repository }}/simulator:latest
+          tags: ghcr.io/${{ env.REPO_LOWER }}/simulator:latest
 
       - name: Build & Push Alert Dispatcher Image
         uses: docker/build-push-action@v5
         with:
           context: ./alert_service
           push: true
-          tags: ghcr.io/${{ github.repository }}/alert-dispatcher:latest
+          tags: ghcr.io/${{ env.REPO_LOWER }}/alert-dispatcher:latest
 
   deploy-kubernetes:
     name: Deploy to Kubernetes Cluster via Helm
