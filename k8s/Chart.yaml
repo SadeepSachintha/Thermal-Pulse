@@ -1,0 +1,6 @@
+apiVersion: v2
+name: thermal-pulse
+description: Helm chart for ThermalPulse Smart Cold Chain & IoT Sensor Telemetry Engine
+type: application
+version: 1.0.0
+appVersion: "2.0.0"

@@ -1,0 +1,111 @@
+name: ThermalPulse CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-lint:
+    name: Run Unit Tests & Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Stream Processor & Simulator Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r stream_processor/requirements.txt
+          pip install -r simulator/requirements.txt
+          pip install -r alert_service/requirements.txt
+
+      - name: Set up PHP 8.2
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Validate Laravel Backend Composer Dependencies
+        run: |
+          cd backend
+          composer validate --no-check-all
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build React Telemetry Frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+  build-and-push:
+    name: Build & Push Microservice Containers
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Faust Stream Processor Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./stream_processor
+          push: true
+          tags: ghcr.io/${{ github.repository }}/faust-processor:latest
+
+      - name: Build & Push Sensor Simulator Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./simulator
+          push: true
+          tags: ghcr.io/${{ github.repository }}/simulator:latest
+
+      - name: Build & Push Alert Dispatcher Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./alert_service
+          push: true
+          tags: ghcr.io/${{ github.repository }}/alert-dispatcher:latest
+
+  deploy-kubernetes:
+    name: Deploy to Kubernetes Cluster via Helm
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
+      - name: Set up Kubeconfig
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install thermal-pulse ./k8s \
+            --namespace thermal-pulse \
+            --create-namespace \
+            --set image.tag=latest

@@ -1,0 +1,23 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/sadeepsachintha/thermal-pulse
+  tag: latest
+  pullPolicy: IfNotPresent
+
+environment:
+  kafkaBootstrapServer: "kafka:29092"
+  dbHost: "timescaledb"
+  dbUser: "thermal_user"
+  dbPassword: "thermal_password"
+  dbName: "thermal_pulse_db"
+  redisHost: "redis"
+
+ingress:
+  enabled: true
+  className: "nginx"
+  hosts:
+    - host: thermalpulse.coldchain.io
+      paths:
+        - path: /
+          pathType: Prefix

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-faust-processor
+  labels:
+    app: faust-processor
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: faust-processor
+  template:
+    metadata:
+      labels:
+        app: faust-processor
+    spec:
+      containers:
+        - name: faust-processor
+          image: "{{ .Values.image.repository }}/faust-processor:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVER
+              value: {{ .Values.environment.kafkaBootstrapServer | quote }}
+            - name: DB_HOST
+              value: {{ .Values.environment.dbHost | quote }}
+            - name: DB_USER
+              value: {{ .Values.environment.dbUser | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.environment.dbPassword | quote }}
+            - name: DB_NAME
+              value: {{ .Values.environment.dbName | quote }}
+            - name: REDIS_HOST
+              value: {{ .Values.environment.redisHost | quote }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-alert-dispatcher
+  labels:
+    app: alert-dispatcher
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-dispatcher
+  template:
+    metadata:
+      labels:
+        app: alert-dispatcher
+    spec:
+      containers:
+        - name: alert-dispatcher
+          image: "{{ .Values.image.repository }}/alert-dispatcher:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: REDIS_HOST
+              value: {{ .Values.environment.redisHost | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-simulator
+  labels:
+    app: simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simulator
+  template:
+    metadata:
+      labels:
+        app: simulator
+    spec:
+      containers:
+        - name: simulator
+          image: "{{ .Values.image.repository }}/simulator:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVER
+              value: {{ .Values.environment.kafkaBootstrapServer | quote }}
+            - name: NUM_SENSORS
+              value: "100"
+            - name: INTERVAL_SECONDS
+              value: "2"
