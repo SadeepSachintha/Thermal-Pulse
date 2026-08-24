@@ -5,6 +5,7 @@ import LiveTelemetryMap from './components/LiveTelemetryMap';
 import BreachAlertsStream from './components/BreachAlertsStream';
 import AssetDetailModal from './components/AssetDetailModal';
 import GeofenceEditorModal from './components/GeofenceEditorModal';
+import ExcursionAlarmBanner from './components/ExcursionAlarmBanner';
 import { getFleetState, convertTemp, getUnitSymbol } from './services/mockDataGenerator';
 import { Search, Cpu } from 'lucide-react';
 
@@ -85,6 +86,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
       
+      {/* Real-time Excursion Alarm Banner */}
+      <ExcursionAlarmBanner activeBreaches={breaches} unit={unit} />
+
       {/* Navigation Header */}
       <Navbar 
         isLiveBackend={isLiveBackend}
