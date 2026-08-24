@@ -4,6 +4,26 @@
 
 ---
 
+## Quickstart Launcher (`start.bat`)
+
+For 1-click execution on Windows, double-click [`start.bat`](file:///d:/xampp/htdocs/Thermal%20Pulse/start.bat) or run in CMD:
+
+```cmd
+start.bat
+```
+
+### Launcher Interactive Menu Options:
+1. **Start Full Docker Cluster** (EMQX, Kafka, TimescaleDB, Redis, Faust Processor, Simulator, Alert Dispatcher)
+2. **Start React Telemetry Dashboard UI** (Opens `http://localhost:3000`)
+3. **Start Full Stack** (Cluster + Dashboard UI)
+4. **Test WHO Haynes MKT Calculation Query**
+5. **Query TimescaleDB Continuous Aggregates** (1-Hour Rollup)
+6. **Inspect Redis Hot Cache Snapshots**
+7. **View Telemetry Packets with PostGIS Location**
+8. **Stop All Docker Containers**
+
+---
+
 ## Architecture Overview
 
 ```text
@@ -14,7 +34,7 @@
           │ (Topic: coldchain-telemetry-raw)
           ▼
 [ Faust Python Stream Processor ] ───► [ Redis Hot Cache & Pub/Sub ] ───► [ Alert Dispatcher Microservice ]
-          │                                                                      │ (Webhook Notifications)
+          │                                                                      │ (Webhook, Slack, Telegram)
           ▼                                                                      ▼
  [ TimescaleDB Hypertable & PostGIS ] ◄────────────────────────────────  [ Live React Dashboard UI ]
  (Daily Chunk Partitioning & Rollups)                                    (Leaflet Map & MKT Analytics)
@@ -29,8 +49,8 @@
 - **Time-Series & Spatial Database**: TimescaleDB (PostgreSQL 16 + TimescaleDB + PostGIS)
 - **In-Memory Hot Store & Messaging**: Redis 7.2 Alpine
 - **Stream Processing Engine**: Faust Python Stream Processor (`faust-streaming`)
-- **Alert Dispatcher**: Python Async Redis Pub/Sub Consumer
-- **API Backend**: PHP 8.2+ / Laravel 12 (Eloquent, MKT Service, Shelf-Life Predictor)
+- **Alert Dispatcher**: Python Async Multi-Channel Worker (Slack & Telegram APIs)
+- **API Backend**: PHP 8.2+ / Laravel 12 (Eloquent, MKT Service, Shelf-Life Predictor, Geofence Service)
 - **Frontend Dashboard**: React + Vite + Tailwind CSS + Leaflet (Ports `3000`)
 
 ---
@@ -39,6 +59,7 @@
 
 ```text
 Thermal Pulse/
+├── start.bat                       # 1-Click interactive Windows launcher batch script
 ├── docker-compose.yml              # Multi-container orchestration stack
 ├── Makefile                        # Developer CLI management shortcuts
 ├── README.md                       # Complete technical documentation
@@ -55,34 +76,33 @@ Thermal Pulse/
 ├── alert_service/
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   └── alert_dispatcher.py         # Async Redis Pub/Sub excursion alert notification worker
+│   └── alert_dispatcher.py         # Multi-channel Slack & Telegram alert dispatcher
 ├── backend/
 │   ├── app/
 │   │   ├── Http/Controllers/TelemetryController.php
 │   │   ├── Models/Asset.php
 │   │   ├── Models/ExcursionLog.php
+│   │   ├── Services/AuditReportGenerator.php
+│   │   ├── Services/GeofenceService.php
 │   │   ├── Services/MktCalculator.php
 │   │   ├── Services/RedisSnapshotService.php
 │   │   └── Services/ShelfLifePredictor.php
 │   ├── composer.json
 │   └── routes/api.php
-└── frontend/                       # React + Vite + Tailwind CSS + Leaflet Dashboard
-    ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    └── src/
-        ├── App.jsx
-        ├── index.css
-        ├── components/
-        │   ├── Navbar.jsx
-        │   ├── FleetOverviewCards.jsx
-        │   ├── LiveTelemetryMap.jsx
-        │   ├── BreachAlertsStream.jsx
-        │   ├── AssetDetailModal.jsx
-        │   ├── MktCalculatorWidget.jsx
-        │   └── ShelfLifePredictorWidget.jsx
-        └── services/
-            └── mockDataGenerator.js
+├── frontend/                       # React + Vite + Tailwind CSS + Leaflet Dashboard
+│   └── src/
+│       ├── App.jsx
+│       ├── components/
+│       │   ├── LiveTelemetryMap.jsx
+│       │   ├── GeofenceEditorModal.jsx
+│       │   └── AssetDetailModal.jsx
+│       └── services/
+│           └── mockDataGenerator.js
+└── k8s/                            # Kubernetes Helm Deployment Manifests
+    ├── Chart.yaml
+    ├── values.yaml
+    └── templates/
+        └── deployment-thermalpulse.yaml
 ```
 
 ---
@@ -99,97 +119,12 @@ Evaluates cumulative thermal degradation against standard storage reference ($5^
 
 $$k(T) = \exp\left( 10000.0 \cdot \left( \frac{1}{278.15} - \frac{1}{T + 273.15} \right) \right)$$
 
-$$\text{Degradation \%} = \frac{\sum k(T_i) \cdot \Delta t}{\text{Nominal Shelf Hours}} \times 100$$
-
-### 3. TimescaleDB Continuous Aggregate View
-```sql
-CREATE MATERIALIZED VIEW telemetry_hourly_summary
-WITH (timescaledb.continuous) AS
-SELECT 
-    time_bucket('1 hour', recorded_at) AS bucket,
-    device_id,
-    COUNT(*) as sample_count,
-    MIN(temperature) as min_temp,
-    MAX(temperature) as max_temp,
-    AVG(temperature) as avg_temp,
-    AVG(humidity) as avg_humidity
-FROM sensor_telemetry
-GROUP BY bucket, device_id;
-```
-
 ---
 
-## API Endpoints Reference
-
-### 1. Get WHO/HACCP Excursion Audit Summary
-`GET /api/v1/assets/{deviceId}/compliance?from={isoDate}&to={isoDate}`
-
-**Sample Response:**
-```json
-{
-  "device_id": "CONT-SENSOR-001",
-  "audit_window": {
-    "from": "2026-08-17T12:00:00Z",
-    "to": "2026-08-24T12:00:00Z"
-  },
-  "telemetry_samples": 30240,
-  "min_temp_celsius": 2.1,
-  "max_temp_celsius": 7.8,
-  "avg_temp_celsius": 4.52,
-  "mkt_celsius": 4.68,
-  "regulatory_status": "COMPLIANT",
-  "excursion_events": []
-}
-```
-
-### 2. Get Biopharma Vaccine Shelf-Life Prediction
-`GET /api/v1/assets/{deviceId}/shelflife?nominal_days=180`
-
-**Sample Response:**
-```json
-{
-  "device_id": "CONT-SENSOR-001",
-  "status": "ANALYZED",
-  "nominal_shelf_life_days": 180,
-  "cumulative_degradation_pct": 2.4,
-  "equivalent_hours_consumed": 103.7,
-  "estimated_days_remaining": 175.7,
-  "quality_grade": "OPTIMAL"
-}
-```
-
-### 3. Get Active Fleet Hot Snapshot State
-`GET /api/v1/telemetry/live`
-
----
-
-## Quickstart & CLI Commands
-
-### 1. Launch Dashboard UI (Dev Server)
-```bash
-cd frontend && npm run dev
-```
-Open **`http://localhost:3000/`** in your browser.
-
-### 2. Spin Up Complete Cluster via Makefile
-```bash
-make up
-```
-
-### 3. Developer Makefile Command Reference
-
-| Command | Description |
-| :--- | :--- |
-| `make up` | Build and spin up all 7 Docker microservices in detached mode |
-| `make down` | Tear down cluster containers and volumes |
-| `make dev-frontend` | Launch React + Vite telemetry dashboard dev server |
-| `make status` | Check status of running container stack |
-| `make logs` | Stream logs across all cluster microservices |
-| `make db-shell` | Open interactive `psql` session in TimescaleDB container |
-| `make test-mkt` | Execute MKT stored procedure test on device `CONT-SENSOR-001` |
-| `make hourly-summary` | Query TimescaleDB `telemetry_hourly_summary` continuous aggregate view |
-| `make redis-inspect` | Inspect Redis hot cache state for `device:CONT-SENSOR-001:latest` |
-| `make telemetry-sample` | View 10 latest records with PostGIS geometry from hypertable |
+## Future Roadmap Suggestions
+1. **MQTT Sensor Device TLS Authentication**: Enforce X.509 mTLS certificates for IoT devices connecting to EMQX.
+2. **Offline Buffer & Store-and-Forward**: Enable local flash storage on physical reefer hardware to cache telemetry during cellular network dead zones.
+3. **Machine Learning Predictive Maintenance**: Integrate an XGBoost model predicting reefer compressor failure before thermal breach occurs.
 
 ---
 
