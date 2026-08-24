@@ -18,19 +18,18 @@ services:
     image: confluentinc/cp-kafka:7.6.1
     container_name: thermal_kafka
     ports:
-      - "9092:9092"
       - "29092:29092"
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
-      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
@@ -46,8 +45,8 @@ services:
       POSTGRES_USER: thermal_user
       POSTGRES_PASSWORD: thermal_password
       POSTGRES_DB: thermal_pulse_db
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
       - timescale_data:/var/lib/postgresql/data
@@ -58,8 +57,8 @@ services:
   redis:
     image: redis:7.2-alpine
     container_name: thermal_redis
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     networks:
       - thermal_net
 
@@ -97,7 +96,7 @@ services:
     networks:
       - thermal_net
 
-  # 7. Real-Time Multi-Channel Alert Dispatcher (Webhooks, Slack, Telegram)
+  # 7. Real-Time Multi-Channel Alert Dispatcher
   alert-dispatcher:
     build:
       context: ./alert_service

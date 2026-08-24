@@ -1,11 +1,11 @@
 @echo off
-TITLE ThermalPulse - Smart Cold Chain & IoT Telemetry Engine
+TITLE ThermalPulse - Smart Cold Chain ^& IoT Telemetry Engine
 COLOR 0B
 
 :MENU
 cls
 echo =======================================================================
-echo          THERMALPULSE: SMART COLD CHAIN & TELEMETRY ENGINE
+echo          THERMALPULSE: SMART COLD CHAIN ^& TELEMETRY ENGINE
 echo =======================================================================
 echo.
 echo  [1] Start Full Docker Cluster (EMQX, Kafka, TimescaleDB, Redis, Faust)
@@ -37,6 +37,17 @@ goto MENU
 
 :START_DOCKER
 echo.
+echo Checking Docker Desktop daemon connection...
+docker info >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [ERROR] Docker Desktop is not currently running!
+    echo Please launch Docker Desktop from your Start Menu, wait until it starts, and try again.
+    echo.
+    pause
+    goto MENU
+)
+echo.
 echo Starting Docker Compose microservices...
 docker compose up -d --build
 echo.
@@ -54,9 +65,18 @@ goto MENU
 
 :START_STACK
 echo.
-echo Starting Docker Compose cluster...
-docker compose up -d --build
-echo.
+echo Checking Docker Desktop daemon connection...
+docker info >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo [WARNING] Docker Desktop is not currently running.
+    echo Launching frontend in Simulator Mode...
+    echo.
+) else (
+    echo Starting Docker Compose cluster...
+    docker compose up -d --build
+    echo.
+)
 echo Launching React Dashboard...
 start http://localhost:3000
 cd frontend
