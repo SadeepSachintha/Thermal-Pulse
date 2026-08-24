@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  # 1. MQTT Broker
+  emqx:
+    image: emqx/emqx:5.8.0
+    container_name: thermal_emqx
+    ports:
+      - "1883:1883"      # MQTT Protocol
+      - "18083:18083"    # EMQX Dashboard (admin/public)
+    environment:
+      EMQX_ALLOW_ANONYMOUS: "true"
+    networks:
+      - thermal_net
+
+  # 2. Apache Kafka (KRaft Mode)
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: thermal_kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:29092,CONTROLLER://0.0.0.0:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - thermal_net
+
+  # 3. TimescaleDB (PostgreSQL 16 + TimescaleDB + PostGIS)
+  timescaledb:
+    image: timescale/timescaledb-ha:pg16
+    container_name: thermal_timescale
+    environment:
+      POSTGRES_USER: thermal_user
+      POSTGRES_PASSWORD: thermal_password
+      POSTGRES_DB: thermal_pulse_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - thermal_net
+
+  # 4. Redis Cache & Queue
+  redis:
+    image: redis:7.2-alpine
+    container_name: thermal_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - thermal_net
+
+  # 5. Faust Stream Processor
+  faust-worker:
+    build:
+      context: ./stream_processor
+    container_name: thermal_faust
+    depends_on:
+      - kafka
+      - timescaledb
+      - redis
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: "kafka:29092"
+      DB_HOST: "timescaledb"
+      DB_USER: "thermal_user"
+      DB_PASSWORD: "thermal_password"
+      DB_NAME: "thermal_pulse_db"
+      REDIS_HOST: "redis"
+    restart: always
+    networks:
+      - thermal_net
+
+  # 6. Sensor Simulator (100 assets)
+  simulator:
+    build:
+      context: ./simulator
+    container_name: thermal_simulator
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BOOTSTRAP_SERVER: "kafka:29092"
+      NUM_SENSORS: 100
+      INTERVAL_SECONDS: 2
+    networks:
+      - thermal_net
+
+  # 7. Real-Time Multi-Channel Alert Dispatcher
+  alert-dispatcher:
+    build:
+      context: ./alert_service
+    container_name: thermal_alert_dispatcher
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOST: "redis"
+      ALERT_WEBHOOK_URL: ""
+    restart: always
+    networks:
+      - thermal_net
+
+networks:
+  thermal_net:
+    driver: bridge
+
+volumes:
+  timescale_data:
