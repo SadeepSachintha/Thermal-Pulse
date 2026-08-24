@@ -4,11 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Response;
 use App\Services\MktCalculator;
 use App\Services\ShelfLifePredictor;
 use App\Services\RedisSnapshotService;
 use App\Services\AuditReportGenerator;
+use App\Services\GeofenceService;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -18,17 +18,20 @@ class TelemetryController extends Controller
     protected ShelfLifePredictor $shelfLifePredictor;
     protected RedisSnapshotService $snapshotService;
     protected AuditReportGenerator $reportGenerator;
+    protected GeofenceService $geofenceService;
 
     public function __construct(
         MktCalculator $mktService,
         ShelfLifePredictor $shelfLifePredictor,
         RedisSnapshotService $snapshotService,
-        AuditReportGenerator $reportGenerator
+        AuditReportGenerator $reportGenerator,
+        GeofenceService $geofenceService
     ) {
         $this->mktService = $mktService;
         $this->shelfLifePredictor = $shelfLifePredictor;
         $this->snapshotService = $snapshotService;
         $this->reportGenerator = $reportGenerator;
+        $this->geofenceService = $geofenceService;
     }
 
     /**
@@ -117,5 +120,37 @@ class TelemetryController extends Controller
             'timestamp'           => Carbon::now()->toIso8601String(),
             'assets'              => $fleet
         ]);
+    }
+
+    /**
+     * Get all PostGIS geofence polygons.
+     */
+    public function getGeofences(): JsonResponse
+    {
+        return response()->json($this->geofenceService->getAllGeofences());
+    }
+
+    /**
+     * Create a new PostGIS geofence polygon.
+     */
+    public function createGeofence(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'       => 'required|string|max:255',
+            'zone_type'  => 'required|string|in:SAFE_HUB,COLD_CORRIDOR,RESTRICTED_ZONE',
+            'points'     => 'required|array|min:3',
+        ]);
+
+        $res = $this->geofenceService->createGeofence($validated['name'], $validated['zone_type'], $validated['points']);
+        return response()->json($res, 201);
+    }
+
+    /**
+     * Delete a geofence.
+     */
+    public function deleteGeofence(int $id): JsonResponse
+    {
+        $deleted = $this->geofenceService->deleteGeofence($id);
+        return response()->json(['deleted' => $deleted]);
     }
 }

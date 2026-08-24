@@ -4,17 +4,48 @@ import FleetOverviewCards from './components/FleetOverviewCards';
 import LiveTelemetryMap from './components/LiveTelemetryMap';
 import BreachAlertsStream from './components/BreachAlertsStream';
 import AssetDetailModal from './components/AssetDetailModal';
+import GeofenceEditorModal from './components/GeofenceEditorModal';
 import { getFleetState } from './services/mockDataGenerator';
-import { Thermometer, Search, RefreshCw, Cpu, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { Search, Cpu } from 'lucide-react';
 
 export default function App() {
   const [assets, setAssets] = useState([]);
   const [breaches, setBreaches] = useState([]);
   const [isLiveBackend, setIsLiveBackend] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [showGeofencesModal, setShowGeofencesModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString());
+
+  const [geofences, setGeofences] = useState([
+    {
+      id: 1,
+      name: 'Colombo Western Cold Hub',
+      zone_type: 'SAFE_HUB',
+      points: [
+        [79.8400, 6.9000],
+        [79.9000, 6.9000],
+        [79.9000, 6.9600],
+        [79.8400, 6.9600],
+        [79.8400, 6.9000],
+      ],
+      wkt: 'POLYGON((79.8400 6.9000, 79.9000 6.9000, 79.9000 6.9600, 79.8400 6.9600, 79.8400 6.9000))'
+    },
+    {
+      id: 2,
+      name: 'Central Hill Country Pharma Corridor',
+      zone_type: 'COLD_CORRIDOR',
+      points: [
+        [80.6000, 7.2700],
+        [80.6800, 7.2700],
+        [80.6800, 7.3500],
+        [80.6000, 7.3500],
+        [80.6000, 7.2700],
+      ],
+      wkt: 'POLYGON((80.6000 7.2700, 80.6800 7.2700, 80.6800 7.3500, 80.6000 7.3500, 80.6000 7.2700))'
+    }
+  ]);
 
   const fetchTelemetryData = async () => {
     const data = await getFleetState();
@@ -29,6 +60,14 @@ export default function App() {
     const interval = setInterval(fetchTelemetryData, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSaveGeofence = (newGeo) => {
+    setGeofences(prev => [newGeo, ...prev]);
+  };
+
+  const handleDeleteGeofence = (id) => {
+    setGeofences(prev => prev.filter(g => g.id !== id));
+  };
 
   const filteredAssets = assets.filter(dev => {
     const matchesSearch = dev.device_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,6 +90,7 @@ export default function App() {
         activeBreachesCount={activeBreachesCount}
         onRefresh={fetchTelemetryData}
         lastUpdated={lastUpdated}
+        onOpenGeofences={() => setShowGeofencesModal(true)}
       />
 
       {/* Main Dashboard Container */}
@@ -64,6 +104,7 @@ export default function App() {
           <div className="lg:col-span-2">
             <LiveTelemetryMap 
               assets={filteredAssets} 
+              geofences={geofences}
               onSelectAsset={(asset) => setSelectedAsset(asset)} 
             />
           </div>
@@ -165,6 +206,16 @@ export default function App() {
         <AssetDetailModal 
           asset={selectedAsset} 
           onClose={() => setSelectedAsset(null)} 
+        />
+      )}
+
+      {/* PostGIS Geofence Manager Modal */}
+      {showGeofencesModal && (
+        <GeofenceEditorModal 
+          geofences={geofences}
+          onSaveGeofence={handleSaveGeofence}
+          onDeleteGeofence={handleDeleteGeofence}
+          onClose={() => setShowGeofencesModal(false)}
         />
       )}
 

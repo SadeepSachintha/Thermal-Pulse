@@ -1,7 +1,7 @@
 import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polygon } from 'react-leaflet';
 import L from 'leaflet';
-import { Thermometer, ShieldAlert, Truck, Battery, Navigation } from 'lucide-react';
+import { Thermometer, Navigation, Battery } from 'lucide-react';
 
 // Custom Leaflet Icons for Compliant vs Breach Units
 const createCustomIcon = (status, temp) => {
@@ -26,7 +26,7 @@ const createCustomIcon = (status, temp) => {
   });
 };
 
-export default function LiveTelemetryMap({ assets = [], onSelectAsset }) {
+export default function LiveTelemetryMap({ assets = [], geofences = [], onSelectAsset }) {
   // Map center over Sri Lanka transport corridor hub
   const center = [6.9271, 79.8612];
 
@@ -43,6 +43,10 @@ export default function LiveTelemetryMap({ assets = [], onSelectAsset }) {
           <div className="flex items-center gap-1.5 text-cyan-300">
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
             Compliant Units
+          </div>
+          <div className="flex items-center gap-1.5 text-emerald-400">
+            <span className="w-2.5 h-2.5 rounded-sm border border-emerald-400 bg-emerald-500/20"></span>
+            PostGIS Geofence
           </div>
           <div className="flex items-center gap-1.5 text-rose-400">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
@@ -65,6 +69,36 @@ export default function LiveTelemetryMap({ assets = [], onSelectAsset }) {
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
 
+          {/* Render Active PostGIS Geofence Polygons */}
+          {geofences.map((geo) => {
+            if (!geo.points || geo.points.length === 0) return null;
+            // Convert [lng, lat] to Leaflet [lat, lng]
+            const leafletPositions = geo.points.map(pt => [pt[1], pt[0]]);
+            const isCorridor = geo.zone_type === 'COLD_CORRIDOR';
+
+            return (
+              <Polygon
+                key={geo.id}
+                positions={leafletPositions}
+                pathOptions={{
+                  color: isCorridor ? '#06b6d4' : '#10b981',
+                  fillColor: isCorridor ? '#06b6d4' : '#10b981',
+                  fillOpacity: 0.15,
+                  weight: 2,
+                  dashArray: isCorridor ? '4, 4' : null,
+                }}
+              >
+                <Popup>
+                  <div className="p-1 font-mono text-xs">
+                    <span className="font-bold text-cyan-300 block">{geo.name}</span>
+                    <span className="text-[10px] text-slate-400">Type: {geo.zone_type}</span>
+                  </div>
+                </Popup>
+              </Polygon>
+            );
+          })}
+
+          {/* Render Telemetry Devices */}
           {assets.map((dev) => (
             <Marker
               key={dev.device_id}

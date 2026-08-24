@@ -1,7 +1,7 @@
 import React from 'react';
-import { Thermometer, ShieldAlert, Cpu, Activity, Snowflake, RefreshCw, Layers } from 'lucide-react';
+import { Thermometer, ShieldAlert, Cpu, Snowflake, RefreshCw, Navigation } from 'lucide-react';
 
-export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount, onRefresh, lastUpdated }) {
+export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount, onRefresh, lastUpdated, onOpenGeofences }) {
   return (
     <header className="sticky top-0 z-50 glass-panel border-b border-slate-800 px-6 py-3.5">
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
@@ -31,10 +31,19 @@ export default function Navbar({ isLiveBackend, totalAssets, activeBreachesCount
           </div>
         </div>
 
-        {/* Real-time Status Badges */}
-        <div className="flex items-center gap-3 text-xs">
+        {/* Real-time Status Badges & Action Buttons */}
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           
-          {/* Live Kafka / Faust Stream Status */}
+          {/* Geofence Corridor Manager Trigger */}
+          <button
+            onClick={onOpenGeofences}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 font-mono transition-colors shadow-lg shadow-cyan-950/40"
+          >
+            <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+            PostGIS Geofences
+          </button>
+
+          {/* Live Kafka Stream Status */}
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg glass-card border border-slate-800">
             <span className="relative flex h-2 w-2">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isLiveBackend ? 'bg-emerald-400' : 'bg-amber-400'} opacity-75`}></span>
