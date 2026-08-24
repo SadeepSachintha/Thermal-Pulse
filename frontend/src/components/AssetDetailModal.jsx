@@ -1,13 +1,13 @@
 import React from 'react';
-import { X, Thermometer, ShieldAlert, Battery, MapPin, Activity, Download, FileSpreadsheet } from 'lucide-react';
+import { X, Thermometer, FileSpreadsheet, MapPin } from 'lucide-react';
 import MktCalculatorWidget from './MktCalculatorWidget';
 import ShelfLifePredictorWidget from './ShelfLifePredictorWidget';
+import TelemetryChart from './TelemetryChart';
 
 export default function AssetDetailModal({ asset, onClose }) {
   if (!asset) return null;
 
   const handleExportCsv = () => {
-    // Generate CSV client-side / call export endpoint
     const rows = [
       ["WHO / HACCP COLD CHAIN COMPLIANCE AUDIT REPORT"],
       ["Device ID", asset.device_id],
@@ -100,6 +100,15 @@ export default function AssetDetailModal({ asset, onClose }) {
             <div className="text-2xl font-bold font-mono text-emerald-300 mt-1">{asset.battery}%</div>
             <span className="text-[10px] text-slate-500">IoT Telemetry Node</span>
           </div>
+        </div>
+
+        {/* Real-Time Telemetry Time-Series Chart */}
+        <div className="mb-6">
+          <TelemetryChart 
+            history={asset.history || []} 
+            tempMin={asset.temp_min_celsius || 2.0} 
+            tempMax={asset.temp_max_celsius || 8.0} 
+          />
         </div>
 
         {/* MKT and Shelf-Life Intelligence Widgets */}
