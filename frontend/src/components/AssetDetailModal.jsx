@@ -1,10 +1,34 @@
 import React from 'react';
-import { X, Thermometer, ShieldAlert, Battery, MapPin, Activity, Clock } from 'lucide-react';
+import { X, Thermometer, ShieldAlert, Battery, MapPin, Activity, Download, FileSpreadsheet } from 'lucide-react';
 import MktCalculatorWidget from './MktCalculatorWidget';
 import ShelfLifePredictorWidget from './ShelfLifePredictorWidget';
 
 export default function AssetDetailModal({ asset, onClose }) {
   if (!asset) return null;
+
+  const handleExportCsv = () => {
+    // Generate CSV client-side / call export endpoint
+    const rows = [
+      ["WHO / HACCP COLD CHAIN COMPLIANCE AUDIT REPORT"],
+      ["Device ID", asset.device_id],
+      ["Asset Name", asset.name],
+      ["Asset Type", asset.asset_type],
+      ["Current Temperature", `${asset.temperature} °C`],
+      ["Relative Humidity", `${asset.humidity} %`],
+      ["Door State", asset.door_open ? "DOOR AJAR" : "SECURED"],
+      ["Regulatory Status", asset.status],
+      ["Export Timestamp", new Date().toISOString()],
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `WHO_Compliance_Audit_${asset.device_id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
@@ -19,23 +43,34 @@ export default function AssetDetailModal({ asset, onClose }) {
         </button>
 
         {/* Modal Header */}
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
-          <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <Thermometer className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-white font-mono">{asset.device_id}</h2>
-              <span className={`px-2.5 py-0.5 text-xs font-bold font-mono rounded ${asset.status === 'COMPLIANT' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' : 'bg-rose-950 text-rose-300 border border-rose-500/40'}`}>
-                {asset.status}
-              </span>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <Thermometer className="w-6 h-6" />
             </div>
-            <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
-              <span>{asset.name}</span>
-              <span>•</span>
-              <span className="font-mono text-cyan-400">{asset.asset_type}</span>
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white font-mono">{asset.device_id}</h2>
+                <span className={`px-2.5 py-0.5 text-xs font-bold font-mono rounded ${asset.status === 'COMPLIANT' ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' : 'bg-rose-950 text-rose-300 border border-rose-500/40'}`}>
+                  {asset.status}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 flex items-center gap-2 mt-1">
+                <span>{asset.name}</span>
+                <span>•</span>
+                <span className="font-mono text-cyan-400">{asset.asset_type}</span>
+              </p>
+            </div>
           </div>
+
+          {/* Export WHO Audit Report Button */}
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs transition-colors shadow-lg shadow-cyan-600/20"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export WHO Audit (CSV)
+          </button>
         </div>
 
         {/* Core Telemetry Snapshot Cards */}

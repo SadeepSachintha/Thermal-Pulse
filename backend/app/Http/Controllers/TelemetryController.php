@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use App\Services\MktCalculator;
 use App\Services\ShelfLifePredictor;
 use App\Services\RedisSnapshotService;
+use App\Services\AuditReportGenerator;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -15,15 +17,18 @@ class TelemetryController extends Controller
     protected MktCalculator $mktService;
     protected ShelfLifePredictor $shelfLifePredictor;
     protected RedisSnapshotService $snapshotService;
+    protected AuditReportGenerator $reportGenerator;
 
     public function __construct(
         MktCalculator $mktService,
         ShelfLifePredictor $shelfLifePredictor,
-        RedisSnapshotService $snapshotService
+        RedisSnapshotService $snapshotService,
+        AuditReportGenerator $reportGenerator
     ) {
         $this->mktService = $mktService;
         $this->shelfLifePredictor = $shelfLifePredictor;
         $this->snapshotService = $snapshotService;
+        $this->reportGenerator = $reportGenerator;
     }
 
     /**
@@ -67,6 +72,27 @@ class TelemetryController extends Controller
             'regulatory_status'  => ($excursions->isEmpty() && ($mkt === null || $mkt <= 8.0)) ? 'COMPLIANT' : 'EXCURSION_BREACHED',
             'excursion_events'   => $excursions
         ]);
+    }
+
+    /**
+     * Export WHO/HACCP compliance audit report as CSV or JSON format.
+     */
+    public function exportAuditReport(Request $request, string $deviceId)
+    {
+        $from = $request->query('from') ? Carbon::parse($request->query('from')) : Carbon::now()->subDays(7);
+        $to = $request->query('to') ? Carbon::parse($request->query('to')) : Carbon::now();
+        $format = strtolower($request->query('format', 'json'));
+
+        if ($format === 'csv') {
+            $csv = $this->reportGenerator->generateCsvContent($deviceId, $from, $to);
+            return response($csv, 200, [
+                'Content-Type'        => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"WHO_Compliance_Audit_{$deviceId}.csv\"",
+            ]);
+        }
+
+        $data = $this->reportGenerator->generateReportData($deviceId, $from, $to);
+        return response()->json($data);
     }
 
     /**
