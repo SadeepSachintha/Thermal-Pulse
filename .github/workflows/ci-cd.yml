@@ -106,12 +106,19 @@ jobs:
         with:
           version: 'v3.13.0'
 
+      - name: Validate Helm Chart (Dry Run)
+        run: |
+          helm lint ./k8s
+          helm template thermal-pulse ./k8s --set image.tag=latest
+
       - name: Set up Kubeconfig
+        if: ${{ secrets.KUBECONFIG != '' }}
         uses: azure/k8s-set-context@v3
         with:
           kubeconfig: ${{ secrets.KUBECONFIG }}
 
       - name: Deploy Helm Chart
+        if: ${{ secrets.KUBECONFIG != '' }}
         run: |
           helm upgrade --install thermal-pulse ./k8s \
             --namespace thermal-pulse \
